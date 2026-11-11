@@ -1,5 +1,15 @@
 """Tableau Cloud: export every view in every sufficiently viewed non-CGBI workbook.
 
+AUTOMATION ANYWHERE:
+    Python: Open -> choose this .py file
+    Python: Execute Function -> function name: current_function
+    Input parameters: NONE
+    Output variable: any STRING variable
+
+The function ALWAYS returns readable status text:
+    SUCCESS | CSV: <absolute path> | ...
+    ERROR | <error name>: <reason> | Traceback: ...
+
 Automation Anywhere compatible: no interactive prompts or extra configuration files.
 Install dependency once: pip install requests
 
@@ -22,7 +32,7 @@ TABLEAU_SITE = "reportingsheerlogistics"
 API_VERSION = "3.22"
 
 PAT_NAME = "api"
-PAT_SECRET = "BvL4UnUASAC4QxDgCry0JQ==:Oh1cRmABeI60QBQrf8HCFTOoMbOyfphg"  # Paste your current PERSONAL ACCESS TOKEN SECRET here, or use environment variable.
+PAT_SECRET = ""  # Paste your current PERSONAL ACCESS TOKEN SECRET here, or use environment variable.
 # Never use the temporary X-Tableau-Auth session token as PAT_SECRET.
 
 MIN_WORKBOOK_ALL_TIME_VIEWS = 5
@@ -42,6 +52,7 @@ import csv
 import io
 import os
 import sys
+import traceback
 import zipfile
 import xml.etree.ElementTree as ET
 from collections import defaultdict
@@ -427,7 +438,11 @@ def main():
         print(f"\nSUCCESS: {len(rows)} view rows from {included_wbs} workbooks")
         print(f"Excluded {len(skipped)} workbooks containing '{EXCLUDE_DATASOURCE_TEXT}' data sources")
         print(f"CSV: {output}")
-        return str(output)
+        return (
+            f"SUCCESS | CSV: {output.resolve()} | "
+            f"workbooks: {included_wbs} | view_rows: {len(rows)} | "
+            f"excluded_cgbi_workbooks: {len(skipped)}"
+        )
     finally:
         if site_id is not None:
             try:
@@ -437,9 +452,34 @@ def main():
         session.close()
 
 
-if __name__ == "__main__":
+def current_function():
+    """Automation Anywhere -> Python: Execute Function. No input parameters.
+
+    Always returns text, including on failures. Map the return value to a bot
+    STRING variable so the bot can display/email/log the exact result.
+    """
     try:
-        main()
-    except (TableauFailure, requests.RequestException, OSError, ValueError, KeyError, TypeError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        return main()
+    except Exception as exc:
+        # Include a limited traceback for debugging the actual failure.
+        details = "".join(traceback.format_exception(
+            type(exc), exc, exc.__traceback__, limit=8
+        ))
+        result = f"ERROR | {type(exc).__name__}: {exc}\n\nTRACEBACK:\n{details}"
+        # Defensive secret redaction: never return a configured token to AA logs.
+        secret = PAT_SECRET.strip() or os.getenv("TABLEAU_PAT_SECRET", "").strip()
+        if secret:
+            result = result.replace(secret, "[REDACTED PAT SECRET]")
+        return result
+
+
+def run_tableau_export():
+    """Alternative Automation Anywhere function name (also takes no args)."""
+    return current_function()
+
+
+if __name__ == "__main__":
+    result = current_function()
+    print(result)
+    if result.startswith("ERROR |"):
         sys.exit(1)
