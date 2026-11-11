@@ -32,7 +32,7 @@ TABLEAU_SITE = "reportingsheerlogistics"
 API_VERSION = "3.22"
 
 PAT_NAME = "api"
-PAT_SECRET = ""  # Paste your current PERSONAL ACCESS TOKEN SECRET here, or use environment variable.
+PAT_SECRET = "BvL4UnUASAC4QxDgCry0JQ==:Oh1cRmABeI60QBQrf8HCFTOoMbOyfphg"  # Paste your current PERSONAL ACCESS TOKEN SECRET here, or use environment variable.
 # Never use the temporary X-Tableau-Auth session token as PAT_SECRET.
 
 MIN_WORKBOOK_ALL_TIME_VIEWS = 5
